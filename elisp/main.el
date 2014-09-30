@@ -105,7 +105,7 @@
     table))
 
 ;;; string -> ((string))
-(defun encode-digits (digits digits-to-words-map)
+(defun decode-digits (digits digits-to-words-map)
   (let
       ((len (length digits)))
     (if (= len 0)
@@ -125,7 +125,7 @@
                 (mapcar
                  (lambda (following-words)
                    (append (list first-word) following-words))
-                 (encode-digits rest digits-to-words-map)))
+                 (decode-digits rest digits-to-words-map)))
               prefixes))))
         (number-sequence 1 len))))))
 
@@ -133,6 +133,6 @@
   (mapconcat
    (lambda (x)
      (concat digits ": " (mapconcat 'identity x " ")))
-   (encode-digits digits digits-to-words-map) "\n"))
+   (decode-digits digits digits-to-words-map) "\n"))
 
 (main)
