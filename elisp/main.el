@@ -1,10 +1,58 @@
+(defun main ()
+  (setq args (nthcdr 5 command-line-args))
+  (setq options (parse-args args))
+
+  (setq words-file (or (cdr (assoc 'words options))
+                       (expand-file-name "../words.txt" (__dirname))))
+
+  (setq phone-file (or (cdr (assoc 'phone options))
+                       (expand-file-name "../phone.txt" (__dirname))))
+
+  (setq words-list (build-word-list words-file))
+  (setq digit-to-letters-list (build-digit-to-letters-list phone-file))
+  (setq letter-to-digit-map (build-letter-to-digit-map digit-to-letters-list))
+  (setq digits-to-words-map (build-digits-to-words-map words-list letter-to-digit-map))
+
+  (setq
+   process-line
+   (if (cdr (assoc 'reverse options))
+       (lambda (line) (translate-sentence-to-digits line letter-to-digit-map))
+     (lambda (line) (translate-digits-to-sentences line digits-to-words-map))))
+
+  (let (line)
+    (while (setq line (read-from-minibuffer ""))
+      (princ (funcall process-line line))
+      (princ "\n"))))
+
+(defun __dirname () (file-name-directory load-file-name))
+
+(defun parse-args (args)
+  (let (arg (options nil))
+    (while (> (length args) 0)
+      (setq arg (car args))
+      (setq args (cdr args))
+      (cond
+       ((or (string= arg "-p") (string= arg "--phone-file"))
+        (setq arg (car args))
+        (setq args (cdr args))
+        (setq options (append `((phone . ,arg)) options)))
+       ((or (string= arg "-w") (string= arg "--words-file"))
+        (setq arg (car args))
+        (setq args (cdr args))
+        (setq options (append `((words . ,arg)) options)))
+       ((or (string= arg "-r") (string= arg "--reverse"))
+        (setq options (append `((reverse . t)) options)))
+       (t (print (concat "Unknow flag " arg)))))
+    options))
 
 (defun read-lines (filePath)
   "Return a list of lines in FILEPATH."
   (with-temp-buffer
     (insert-file-contents filePath)
     (split-string
-     (buffer-string) "\n" t)) )
+     (buffer-string) "\n" t)))
+
+(defun build-word-list (words-file) (read-lines words-file))
 
 (defun write-string-to-file (str file)
   (with-temp-file file
@@ -20,88 +68,71 @@
      (substring str 0 n)
      (substring str n len))))
 
-(setq linux-words (read-lines "../words.txt"))
+(defun build-digit-to-letters-list (phone-file)
+  (mapcar
+     (lambda (line)
+       (split-string line "," t))
+     (read-lines phone-file)))
 
-(setq phone-mnem
-      '(
-        ("2" . "ABC")
-        ("3" . "DEF")
-        ("4" . "GHI")
-        ("5" . "JKL")
-        ("6" . "MNO")
-        ("7" . "PQRS")
-        ("8" . "TUV")
-        ("9" . "WXYZ")))
+(defun build-letter-to-digit-map (digit-to-letters)
+  (let ((table (make-hash-table :test 'equal)))
+    (mapc
+     (lambda (item)
+       (let ((digit (car item))
+             (letters (nth 1 item)))
+         (mapc
+          (lambda (letter) (puthash letter digit table))
+          (string-to-list letters))))
+     digit-to-letters)
+    table))
 
-(setq
- phone-char-code
- (let
-     ((table (make-hash-table)))
-   (mapc
-    (lambda (item)
-      (let
-          ((num (car item))
-           (str (cdr item)))
-        (mapc
-         (lambda (c)
-           (puthash c num table))
-         (string-to-list str))))
-    phone-mnem)
-   table))
-
-(defun word-to-phone-code (word)
+(defun word-to-digits (word letter-to-digit-map)
   (mapconcat
-   (lambda (c)
-     (gethash c phone-char-code))
+   (lambda (letter)
+     (gethash letter letter-to-digit-map))
    (string-to-list (upcase word)) ""))
 
-(setq
- linux-words-for-num
- (let
-     ((table (make-hash-table :test 'equal)))
-   (mapc
-    (lambda (w)
-      (let
-          ((c (word-to-phone-code w)))
-        (puthash c (append (gethash c table) (list w)) table)))
-    linux-words)
-   table))
+(defun translate-sentence-to-digits (sentence letter-to-digit-map)
+  (word-to-digits sentence letter-to-digit-map))
 
-;;; string -> ((word))
-(defun encode-phone-number (num)
+(defun build-digits-to-words-map (words letter-to-digit-map)
+  (let ((table (make-hash-table :test 'equal)))
+    (mapc
+     (lambda (word)
+       (let ((digits (word-to-digits word letter-to-digit-map)))
+         (puthash digits (append (gethash digits table) (list word)) table)))
+     words)
+    table))
+
+;;; string -> ((string))
+(defun encode-digits (digits digits-to-words-map)
   (let
-      ((len (length num)))
+      ((len (length digits)))
     (if (= len 0)
         (list (list))
       (apply
        'append
        (mapcar
         (lambda (split)
-          (let* ((tuple (string-partition num split))
+          (let* ((tuple (string-partition digits split))
                  (head (car tuple))
                  (rest (cdr tuple))
-                 (word-list
-                  (gethash head linux-words-for-num)))
+                 (prefixes (gethash head digits-to-words-map)))
             (apply
              'append
              (mapcar
-              (lambda (w)
+              (lambda (first-word)
                 (mapcar
-                 (lambda (l)
-                   (append (list w) l))
-                 (encode-phone-number rest)))
-              word-list))))
+                 (lambda (following-words)
+                   (append (list first-word) following-words))
+                 (encode-digits rest digits-to-words-map)))
+              prefixes))))
         (number-sequence 1 len))))))
 
-(defun translate-phone-number (num)
+(defun translate-digits-to-sentences (digits digits-to-words-map)
   (mapconcat
    (lambda (x)
-     (mapconcat 'identity x " "))
-   (encode-phone-number num) "\n"))
+     (concat digits ": " (mapconcat 'identity x " ")))
+   (encode-digits digits digits-to-words-map) "\n"))
 
-(write-string-to-file
- (mapconcat
-  (lambda (num)
-    (concat "\n" num ":\n" (translate-phone-number num)))
-  (read-lines "../input.txt") "\n")
- "output.txt")
+(main)

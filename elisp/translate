@@ -1,0 +1,5 @@
+#! /bin/sh
+pushd `dirname $0` > /dev/null
+__dirname=`pwd`
+popd > /dev/null
+emacs --script ${__dirname}/main.el -- $@ 2> /dev/null
