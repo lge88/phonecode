@@ -93,7 +93,7 @@
    (string-to-list (upcase word)) ""))
 
 (defun translate-sentence-to-digits (sentence letter-to-digit-map)
-  (word-to-digits sentence letter-to-digit-map))
+  (concat sentence ": " (word-to-digits sentence letter-to-digit-map)))
 
 (defun build-digits-to-words-map (words letter-to-digit-map)
   (let ((table (make-hash-table :test 'equal)))
