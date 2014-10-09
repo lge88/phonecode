@@ -1,0 +1,31 @@
+#!/bin/sh
+
+function print_usage() {
+  echo "check <command> <input-file1[,input-file2...]> <output-file1[,output-file2...]>"
+}
+
+argc="$#"
+[[ argc -lt 3 ]] && print_usage && exit 1
+
+argv=("$@")
+IFS=',' read -ra input_files <<< "${argv[${argc}-2]}"
+IFS=',' read -ra output_files <<< "${argv[${argc}-1]}"
+cmd=${argv[@]:0:${argc}-2}
+
+if [[ ${#input_files[@]} -ne ${#output_files[@]} ]]; then
+  echo "Number of input files should match the number of output files."
+  exit 1
+fi
+
+num_files=${#input_files[@]}
+
+for i in `seq 0 $((num_files-1))`; do
+  in_file=${input_files[i]}
+  out_file=${output_files[i]}
+  echo "cat ${in_file} | ${cmd} | diff - ${out_file}"
+  DIFF=`cat ${in_file} | ${cmd} | diff - ${out_file}`
+  [[ -n ${DIFF} ]] && echo "Fail" && exit 1
+done
+
+echo "OK"
+exit 0
