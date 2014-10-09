@@ -8,8 +8,8 @@ function join { local IFS="$1"; shift; echo "$*"; }
 
 input_sentences_files=`ls -1 input-sentences* | sort`
 output_digits_files=`ls -1 output-digits* | sort`
-$CHECK ${IMPL}/translate -r `join , ${input_sentences_files}` `join , ${output_digits_files}`
+$CHECK ${IMPL}/translate -p phone.txt -w words.txt -r `join , ${input_sentences_files}` `join , ${output_digits_files}`
 
 input_digits_files=`ls -1 input-digits* | sort`
 output_sentences_files=`ls -1 output-sentences* | sort`
-$CHECK ${IMPL}/translate `join , ${input_digits_files}` `join , ${output_sentences_files}`
+$CHECK ${IMPL}/translate -p phone.txt -w words.txt `join , ${input_digits_files}` `join , ${output_sentences_files}`

@@ -25,9 +25,9 @@ function main() {
 
 function parseOptions(args) {
   var options = {}, arg;
-  arg = args.shift();
 
   do {
+    arg = args.shift();
     switch(arg) {
     case '-p':
     case '--phone-file':
