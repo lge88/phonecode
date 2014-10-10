@@ -26,18 +26,19 @@ input to all possible sentences that consist of given set of words.
     -r flag is enabled, the program should translate the sentences to
     digits (unique solution).
 
-- Examples: suppose current directory is the project root, there is a python implementation in
-  `./python` folder, the program should have following behaviors:
+- Examples: suppose current directory is the project root, there is a
+  python implementation in `./python` folder, the program should have
+  following behaviors:
 
   - `echo 'hello world'  | ./python/translate -r -w words.txt -p phone.txt`
 
-     outputs: 
+     outputs:
      ```
      hello world: 4355696753
      ```
 
   - `echo '4355696753'  | ./python/translate -w words.txt -p phone.txt`
-     
+
      outputs:
     ```
      4355696753: gel Jo world
