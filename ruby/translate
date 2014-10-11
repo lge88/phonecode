@@ -36,7 +36,7 @@ class Translator
   end
 
   def encode_word(word)
-    l2d = self.get_l2d
+    l2d = get_l2d
     word.upcase.chars.map do |letter|
       l2d.has_key?(letter) ? l2d[letter] : ""
     end.join("")
@@ -45,9 +45,9 @@ class Translator
   def get_d2w()
     if not @d2w
       @d2w = {}
-      wl = self.get_word_list
+      wl = get_word_list
       wl.each do |word|
-        digits = self.encode_word(word)
+        digits = encode_word(word)
         if not @d2w.has_key?(digits)
           @d2w[digits] = []
         end
@@ -57,9 +57,46 @@ class Translator
     return @d2w
   end
 
+  def encode(word)
+    word + ": " + encode_word(word)
+  end
 
+  def decode_(digits)
+    if digits.empty?
+      return [[]]
+    end
 
-  # private :get_word_list
+    d2w, res = get_d2w, []
+    each_partition(digits, 1) do |partition|
+      prefix, rest = partition
+      if d2w.has_key?(prefix)
+        first_words = d2w[prefix]
+        partitial_solutions = decode_(rest)
+        first_words.each do |first_word|
+          partitial_solutions.each do |partial_solution|
+            res.push([first_word] + partial_solution)
+          end
+        end
+      end
+    end
+    return res
+  end
+
+  def decode(digits)
+    decode_(digits).map do |sentence|
+      digits + ": " + sentence.join(" ")
+    end.join("\n")
+  end
+
+  private :get_word_list, :get_d2w, :get_l2d, :decode_
+end
+
+def each_partition(str, start=0)
+  i, len = start, str.length
+  while i <= len
+    yield [str[0..i-1], str[i..-1]]
+    i += 1
+  end
 end
 
 
@@ -85,16 +122,21 @@ def parse_options(args, options=DEFAULT_OPTIONS)
   end
 end
 
+def line_by_line
+  while line = gets
+    yield line.rstrip
+  end
+end
+
 def main
   options = parse_options(ARGV)
-  # puts options
 
   translator = Translator.new(options[:wordsFile], options[:phoneFile])
+  translate = options[:reverse] ? translator.method(:encode) : translator.method(:decode)
 
-  # puts translator.get_l2d
-  # puts translator.get_word_list
-  # puts translator.encode_word("hello")
-  puts translator.get_d2w
+  line_by_line do |line|
+    puts translate.call(line)
+  end
 end
 
 main
