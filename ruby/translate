@@ -1,0 +1,100 @@
+#!/usr/bin/env ruby
+class Translator
+  def initialize(wordsFile, phoneFile)
+    @wordsFile = wordsFile
+    @phoneFile = phoneFile
+    @wordsList = nil
+    @l2d = nil
+    @d2w = nil
+  end
+
+  def get_word_list()
+    if not @wordsList
+      @wordsList = []
+      File.open(@wordsFile, "r") do |f|
+        f.each_line do |line|
+          @wordsList.push(line.rstrip)
+        end
+      end
+    end
+    return @wordsList
+  end
+
+  def get_l2d()
+    if not @l2d
+      @l2d = {}
+      File.open(@phoneFile, "r") do |f|
+        f.each_line do |line|
+          digit, letters = line.split(',')
+          letters.split("").each do |letter|
+            @l2d[letter] = digit
+          end
+        end
+      end
+    end
+    return @l2d
+  end
+
+  def encode_word(word)
+    l2d = self.get_l2d
+    word.upcase.chars.map do |letter|
+      l2d.has_key?(letter) ? l2d[letter] : ""
+    end.join("")
+  end
+
+  def get_d2w()
+    if not @d2w
+      @d2w = {}
+      wl = self.get_word_list
+      wl.each do |word|
+        digits = self.encode_word(word)
+        if not @d2w.has_key?(digits)
+          @d2w[digits] = []
+        end
+        @d2w[digits].push(word)
+      end
+    end
+    return @d2w
+  end
+
+
+
+  # private :get_word_list
+end
+
+
+DEFAULT_OPTIONS = {
+  :wordsFile => "words.txt",
+  :phoneFile => "phone.txt",
+  :reverse => false
+}
+
+def parse_options(args, options=DEFAULT_OPTIONS)
+  arg = args.shift
+  if not arg
+    options
+  else
+    if arg == '-w'
+      options[:wordsFile] = args.shift
+    elsif arg == '-p'
+      options[:phoneFile] = args.shift
+    elsif arg == '-r'
+      options[:reverse] = true
+    end
+    parse_options(args, options)
+  end
+end
+
+def main
+  options = parse_options(ARGV)
+  # puts options
+
+  translator = Translator.new(options[:wordsFile], options[:phoneFile])
+
+  # puts translator.get_l2d
+  # puts translator.get_word_list
+  # puts translator.encode_word("hello")
+  puts translator.get_d2w
+end
+
+main
