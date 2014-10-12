@@ -16,7 +16,7 @@ MyFuncType myfunc = &ClassName::methodName;
 (obj.*myfunc)(args)
 ```
 
-- Concat (works for both string and vector):
+- Concat/append vectors:
 ```
 vec1.insert(vec1.end(), vec2.begin(), vec2.end())
 ```
