@@ -2,7 +2,6 @@
 #include <fstream>
 #include <string>
 #include <sstream>
-#include <algorithm>
 #include <vector>
 #include <map>
 #include <cstdlib>
@@ -58,7 +57,6 @@ Options parseOptions(int argc, char* argv[]) {
 }
 
 class Translator {
- public:
   string phoneFile, wordsFile;
 
   // Letter to digit map
