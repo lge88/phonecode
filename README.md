@@ -2,7 +2,9 @@
 
 Given a set of English words (`words.txt`) and the layout of phone
 panel (`phone.txt`). Write a program that translates the digits user
-input to all possible sentences that consist of given set of words.
+input to all possible sentences that consist of given set of
+words. Reference:
+http://page.mi.fu-berlin.de/prechelt/Biblio/jccpprtTR.pdf .
 
 # Interface
 
