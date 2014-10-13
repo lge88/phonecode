@@ -3,7 +3,10 @@ CC=clang
 translate: translate.c
 	${CC} translate.c -O3 -o translate
 
+t_trie: t_trie.c trie.h
+	${CC} t_trie.c -g -o t_trie
+
 .PHONY: clean
 
 clean:
-	rm translate
+	rm -f translate t_trie
