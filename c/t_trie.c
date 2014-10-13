@@ -18,6 +18,9 @@ int main() {
   /* fclose(f); */
 
   word_list_t* wl = wl_from_file("../words.txt");
+  for (int i = 0, len = wl_len(wl); i < len; ++i)
+    printf("%s\n", wl_at(wl, i));
+
   /* word_list_print(wl); */
   /* word_destroy(w); */
 

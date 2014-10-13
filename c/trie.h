@@ -71,8 +71,6 @@ word_list_t* wl_from_file(const char* wl_file) {
   while (fgets(buf, sizeof(buf), f) != NULL) words[i++] = word_create(buf);
   wl->words = words;
   wl->len = num_words;
-  /* wl->words = 0; */
-  /* wl->len = 0; */
 
   fclose(f);
   return wl;
@@ -88,9 +86,8 @@ const char* wl_at(word_list_t* wl, int i) {
 }
 
 void wl_destroy(word_list_t* wl) {
-  for (int i = 0, len = wl_len(wl); i < len; ++i) {
-    word_destroy(wl->words[i]);
-  }
+  for (int i = 0, len = wl_len(wl); i < len; ++i) word_destroy(wl->words[i]);
+  free(wl->words);
   free(wl);
 }
 
