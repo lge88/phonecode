@@ -20,20 +20,20 @@ int main() {
   /* fclose(f); */
 
   word_list_t* wl = wl_from_file("../words.txt");
-  /* for (int i = 0, len = wl_len(wl); i < len; ++i) */
-  /*   printf("%s\n", wl_at(wl, i)); */
+  /* wl_print(wl); */
 
   static dict_t _l2d;
   dict_t* l2d = &_l2d;
-
   dict_init("../phone.txt", l2d);
-  /* dict_print(l2d); */
 
+  /* dict_print(l2d); */
   /* printf("a -> %c\n", dict_lookup(l2d, 'a')); */
+  /* printf("B -> %c\n", dict_lookup(l2d, 'B')); */
 
   trie_node_t* root = trie_build(l2d, wl);
-  printf("%s\n", trie_search(root, "43556"));
-  printf("%s\n", trie_search(root, "38628466"));
+  wl_print(trie_search(root, "843"));
+  wl_print(trie_search(root, "43556"));
+  wl_print(trie_search(root, "38628466"));
 
   wl_destroy(wl);
   trie_destroy(root);

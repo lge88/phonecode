@@ -11,49 +11,25 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
 typedef struct {
-  char* val;
-} word_t;
-word_t* word_create(const char* val);
-void word_destroy(word_t* word);
-const char* word_value(const word_t* word);
-int word_len(const word_t* word);
-char word_at(const word_t* word, int i);
-
-word_t* word_create(const char* val) {
-  size_t len = min(strlen(val) + 1, MAX_WORD_LENGTH);
-  word_t* word = (word_t*) malloc(sizeof(word_t));
-  word->val = malloc(len*sizeof(char));
-  strncpy(word->val, val, len);
-  return word;
-}
-
-void word_destroy(word_t* word) {
-  free(word->val);
-  free(word);
-}
-
-const char* word_value(const word_t* word) {
-  return word->val;
-}
-
-int word_len(const word_t* word) {
-  return strlen(word->val);
-}
-
-char word_at(const word_t* word, int i) {
-  int l = word_len(word);
-  if (i >= 0 && i < l) return word->val[i];
-  return '\0';
-}
-
-typedef struct {
-  word_t** words;
+  char** words;
   int len;
+  int cap;
 } word_list_t;
 word_list_t* wl_from_file(const char* wordsFile);
 void wl_destroy(word_list_t* wl);
 const char* wl_at(const word_list_t* wl, int i);
 int wl_len(const word_list_t* wl);
+void wl_append(word_list_t* wl, const char* word);
+
+void wl_print(const word_list_t* wl) {
+  if (!wl) {
+    printf("[]\n");
+    return;
+  }
+
+  for (int i = 0, len = wl_len(wl); i < len; ++i)
+    printf("%d/%d: %s\n", i, len, wl_at(wl, i));
+}
 
 int count_lines(FILE* f) {
   int count = 0;
@@ -67,22 +43,24 @@ void trim_newline_right(char* s) {
   if (s[len-1] == '\n') s[len-1] = '\0';
 }
 
-word_list_t* wl_from_file(const char* wl_file) {
+word_list_t* wl_create(int cap) {
   word_list_t* wl = (word_list_t*) malloc(sizeof(word_list_t));
+  wl->len = 0;
+  wl->cap = cap;
+  wl->words = malloc(cap*sizeof(char**));
+  return wl;
+}
+
+word_list_t* wl_from_file(const char* wl_file) {
+  word_list_t* wl = wl_create(10);
   char buf[MAX_WORD_LENGTH];
   FILE* f = fopen(wl_file, "r");
-
-  int num_words = count_lines(f);
-  word_t** words = malloc(num_words*sizeof(word_t*));
-  int i = 0;
 
   rewind(f);
   while (fgets(buf, sizeof(buf), f) != NULL) {
     trim_newline_right(buf);
-    words[i++] = word_create(buf);
+    wl_append(wl, buf);
   }
-  wl->words = words;
-  wl->len = num_words;
 
   fclose(f);
   return wl;
@@ -93,12 +71,30 @@ int wl_len(const word_list_t* wl) {
 }
 
 const char* wl_at(const word_list_t* wl, int i) {
-  if (i >= 0 && i < wl_len(wl)) return word_value(wl->words[i]);
+  if (i >= 0 && i < wl_len(wl)) return wl->words[i];
   return 0;
 }
 
+void wl_append(word_list_t* wl, const char* word) {
+  int cap = wl->cap;
+  int len = wl->len;
+  int word_size = strlen(word) + 1;
+
+  if (len == cap) {
+    char** old_words = wl->words;
+    wl->words = malloc(2*cap*sizeof(char**));
+    for (int i = 0; i < len; ++i) wl->words[i] = old_words[i];
+    wl->cap *= 2;
+    free(old_words);
+  }
+
+  wl->words[len] = malloc(word_size*sizeof(char));
+  strcpy(wl->words[len], word);
+  wl->len++;
+}
+
 void wl_destroy(word_list_t* wl) {
-  for (int i = 0, len = wl_len(wl); i < len; ++i) word_destroy(wl->words[i]);
+  for (int i = 0, len = wl_len(wl); i < len; ++i) free(wl->words[i]);
   free(wl->words);
   free(wl);
 }
@@ -141,18 +137,18 @@ void dict_print(const dict_t* l2d) {
 }
 
 typedef struct trie_node_t {
-  char* word;
+  word_list_t* wl;
   struct trie_node_t* children[10];
 } trie_node_t;
 trie_node_t* trie_build(const dict_t* l2d, const word_list_t* wl);
 trie_node_t* trie_node_create();
 void trie_insert(trie_node_t* root, const dict_t* l2d, const char* word);
 void trie_destroy(trie_node_t* root);
-const char* trie_search(trie_node_t* root, const char* digits);
+const word_list_t* trie_search(trie_node_t* root, const char* digits);
 
 trie_node_t* trie_node_create() {
   trie_node_t* node = malloc(sizeof(trie_node_t));
-  node->word = 0;
+  node->wl = 0;
   for (int i = 0; i < 10; ++i) node->children[i] = 0;
   return node;
 }
@@ -161,11 +157,12 @@ void _trie_insert(trie_node_t* node, const dict_t* l2d, const char* word, const 
   if (node == 0 || word == 0) return;
 
   int len = strlen(suffix);
-  if (len == 0) return;
 
-  if (len == 1) {
-    node->word = malloc((strlen(word) + 1)*sizeof(char));
-    strcpy(node->word, word);
+  if (len == 0) {
+    if (node->wl == 0) {
+      node->wl = wl_create(1);
+    }
+    wl_append(node->wl, word);
     return;
   }
 
@@ -186,7 +183,7 @@ void trie_insert(trie_node_t* root, const dict_t* l2d, const char* word) {
 
 trie_node_t* trie_build(const dict_t* l2d, const word_list_t* wl) {
   trie_node_t* root = trie_node_create();
-  for (int i = 0, num_words = wl_len(wl); i < num_words; ++i) {
+  for (int i = 0, len = wl_len(wl); i < len; ++i) {
     const char* word = wl_at(wl, i);
     trie_insert(root, l2d, word);
   }
@@ -195,7 +192,7 @@ trie_node_t* trie_build(const dict_t* l2d, const word_list_t* wl) {
 
 void trie_destroy(trie_node_t* node) {
   if (node) {
-    if (node->word) free(node->word);
+    if (node->wl) wl_destroy(node->wl);
     for (int i = 0; i < 10; ++i) {
       trie_destroy(node->children[i]);
     }
@@ -203,12 +200,13 @@ void trie_destroy(trie_node_t* node) {
   }
 }
 
-const char* trie_search(trie_node_t* root, const char* digits) {
+const word_list_t* trie_search(trie_node_t* root, const char* digits) {
   if (root == 0) return 0;
 
+  printf("digits: %s\n", digits);
+
   int len = strlen(digits);
-  if (len == 0) return 0;
-  if (len == 1) return root->word;
+  if (len == 0) return root->wl;
 
   char digit = digits[0];
   int idx = digit - '0';
