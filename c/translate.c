@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "trie.h"
+
 typedef struct {
   char wordsFile[100];
   char phoneFile[100];
@@ -46,5 +48,25 @@ void print_options(options_t* options_ptr) {
 
 int main(int argc, char* argv[]) {
   options_t options = parse_options(argc, argv);
-  print_options(&options);
+  /* print_options(&options); */
+
+  translator_t* translator = translator_create(options.phoneFile, options.wordsFile);
+
+  if (options.reverse) {
+    char buf_out[100];
+    char buf_in[100];
+
+    while (fgets(buf_in, sizeof(buf_in), stdin) != NULL) {
+      trim_newline_right(buf_in);
+      reverse_translate(translator, buf_in, buf_out);
+      const char* word = buf_in;
+      const char* digits = buf_out;
+      printf("%s: %s\n", word, digits);
+    }
+
+  }
+
+  translator_destroy(translator);
+  fclose(stdout);
+  fclose(stdin);
 }

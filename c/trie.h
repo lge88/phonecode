@@ -21,6 +21,7 @@ const char* wl_at(const word_list_t* wl, int i);
 int wl_len(const word_list_t* wl);
 void wl_append(word_list_t* wl, const char* word);
 
+// debug:
 void wl_print(const word_list_t* wl) {
   if (!wl) {
     printf("[]\n");
@@ -128,6 +129,12 @@ char dict_lookup(const dict_t* l2d, char letter) {
   return '-';
 }
 
+void dict_encode_word(const dict_t* l2d, const char* word, char* output_digits) {
+  int len = strlen(word);
+  for (int i = 0; i < len; ++i) output_digits[i] = dict_lookup(l2d, word[i]);
+  output_digits[len] = '\0';
+}
+
 void dict_print(const dict_t* l2d) {
   for (int i = 0; i < 26; ++i) {
     char letter = 'A' + i;
@@ -212,6 +219,56 @@ const word_list_t* trie_search(trie_node_t* root, const char* digits) {
   int idx = digit - '0';
   trie_node_t* node = root->children[idx];
   return trie_search(node, digits + 1);
+}
+
+
+void init() {
+  word_list_t* wl = wl_from_file("../words.txt");
+  /* wl_print(wl); */
+
+  static dict_t _l2d;
+  dict_t* l2d = &_l2d;
+  dict_init("../phone.txt", l2d);
+
+  /* dict_print(l2d); */
+  /* printf("a -> %c\n", dict_lookup(l2d, 'a')); */
+  /* printf("B -> %c\n", dict_lookup(l2d, 'B')); */
+
+  trie_node_t* root = trie_build(l2d, wl);
+  wl_print(trie_search(root, "843"));
+  wl_print(trie_search(root, "43556"));
+  wl_print(trie_search(root, "38628466"));
+
+  wl_destroy(wl);
+  trie_destroy(root);
+  fclose(stdout);
+}
+
+
+typedef struct {
+  word_list_t* wl;
+  trie_node_t* trie_root;
+  dict_t l2d;
+} translator_t;
+
+translator_t* translator_create(const char* phoneFile, const char* wordsFile) {
+  translator_t* translator = malloc(sizeof(translator_t));
+
+  dict_init(phoneFile, &translator->l2d);
+  translator->wl = wl_from_file(wordsFile);
+  translator->trie_root = trie_build(&translator->l2d, translator->wl);
+
+  return translator;
+}
+
+void translator_destroy(translator_t* translator) {
+  wl_destroy(translator->wl);
+  trie_destroy(translator->trie_root);
+  free(translator);
+}
+
+void reverse_translate(translator_t* translator, const char* word, char* output) {
+  dict_encode_word(&translator->l2d, word, output);
 }
 
 #endif
