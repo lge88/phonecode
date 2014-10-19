@@ -71,6 +71,13 @@ int wl_len(const word_list_t* wl) {
   return wl->len;
 }
 
+int wl_num_chars(const word_list_t* wl) {
+  int count = 0;
+  for (int i = 0, len = wl_len(wl); i < len; ++i)
+    count += strlen(wl->words[i]);
+  return count;
+}
+
 const char* wl_at(const word_list_t* wl, int i) {
   if (i >= 0 && i < wl_len(wl)) return wl->words[i];
   return 0;
@@ -98,6 +105,26 @@ void wl_destroy(word_list_t* wl) {
   for (int i = 0, len = wl_len(wl); i < len; ++i) free(wl->words[i]);
   free(wl->words);
   free(wl);
+}
+
+int wl_join(word_list_t* wl, const char* jointer, char* dest) {
+  if (!wl) return 0;
+
+  int len = wl_len(wl);
+  if (wl_len(wl) == 0) return 0;
+
+  char* head = dest;
+  int len_jointer = strlen(jointer);
+  for (int i = 0; i < len; ++i) {
+    if (i > 0) {
+      sprintf(head, "%s", jointer);
+      head += len_jointer;
+    }
+    sprintf(head, "%s", wl->words[i]);
+    head += strlen(wl->words[i]);
+  }
+
+  return (head - dest);
 }
 
 typedef struct {
@@ -221,30 +248,6 @@ const word_list_t* trie_search(trie_node_t* root, const char* digits) {
   return trie_search(node, digits + 1);
 }
 
-
-void init() {
-  word_list_t* wl = wl_from_file("../words.txt");
-  /* wl_print(wl); */
-
-  static dict_t _l2d;
-  dict_t* l2d = &_l2d;
-  dict_init("../phone.txt", l2d);
-
-  /* dict_print(l2d); */
-  /* printf("a -> %c\n", dict_lookup(l2d, 'a')); */
-  /* printf("B -> %c\n", dict_lookup(l2d, 'B')); */
-
-  trie_node_t* root = trie_build(l2d, wl);
-  wl_print(trie_search(root, "843"));
-  wl_print(trie_search(root, "43556"));
-  wl_print(trie_search(root, "38628466"));
-
-  wl_destroy(wl);
-  trie_destroy(root);
-  fclose(stdout);
-}
-
-
 typedef struct {
   word_list_t* wl;
   trie_node_t* trie_root;
@@ -267,8 +270,73 @@ void translator_destroy(translator_t* translator) {
   free(translator);
 }
 
-void reverse_translate(translator_t* translator, const char* word, char* output) {
+void translator_encode(const translator_t* translator, const char* word, char* output) {
   dict_encode_word(&translator->l2d, word, output);
+}
+
+typedef struct word_list_node_t {
+  word_list_t* wl;
+  struct word_list_node_t* next;
+} word_list_node_t;
+
+word_list_node_t* wl_node_create(word_list_t* wl) {
+  word_list_node_t* node = malloc(sizeof(word_list_node_t));
+  node->wl = wl;
+  node->next  = 0;
+  return node;
+}
+
+void wl_node_destroy(word_list_node_t* node) {
+  free(node);
+}
+
+typedef struct word_list_list_t {
+  word_list_node_t* head;
+  word_list_node_t* tail;
+  int len;
+} word_list_list_t;
+
+word_list_list_t* wll_create() {
+  word_list_list_t* wll = malloc(sizeof(word_list_list_t));
+  wll->head = 0;
+  wll->tail = 0;
+  wll->len = 0;
+  return wll;
+}
+
+void wll_destroy(word_list_list_t* wll) {
+  word_list_node_t* cur  = wll->head;
+  while (cur) {
+    word_list_node_t* next  = cur->next;
+    wl_node_destroy(cur);
+    cur = next;
+  }
+  free(wll);
+}
+
+void wll_append(word_list_list_t* wll, word_list_t* wl) {
+  if (!wll->tail) {
+    wll->head = wl_node_create(wl);
+    wll->tail = wll->head;
+    wll->len = 1;
+  } else {
+    word_list_node_t* node = wl_node_create(wl);
+    wll->tail->next = node;
+    wll->tail = node;
+    wll->len++;
+  }
+}
+
+int wll_num_chars(const word_list_list_t* wll) {
+  if (!wll) return 0;
+
+  word_list_node_t* cur = wll->head;
+  int count = 0;
+  while (cur) {
+    count += wl_num_chars(cur->wl);
+    cur = cur->next;
+  }
+  return count;
 }
 
 #endif

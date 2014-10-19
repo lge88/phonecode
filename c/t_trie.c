@@ -2,11 +2,6 @@
 #include <stdio.h>
 #include <ctype.h>
 
-void transform_letter_and_print(char c, int i) {
-  if (i > 0) printf(" ");
-  printf("%c", toupper(c));
-}
-
 int main() {
   /* word_t* w = word_create("hello world.\n"); */
 
@@ -19,8 +14,12 @@ int main() {
   /* printf("n lines: %d\n", count_lines("../words.txt")); */
   /* fclose(f); */
 
-  /* word_list_t* wl = wl_from_file("../words.txt"); */
-  /* wl_print(wl); */
+  word_list_t* wl = wl_from_file("../input-sentences-01.txt");
+  wl_print(wl);
+
+  char dest[1024];
+  wl_join(wl, "--", dest);
+  printf("%s", dest);
 
   /* static dict_t _l2d; */
   /* dict_t* l2d = &_l2d; */
@@ -32,18 +31,18 @@ int main() {
 
   /* trie_node_t* root = trie_build(l2d, wl); */
 
-  translator_t* translator = translator_create("../phone.txt", "../words.txt");
+  /* translator_t* translator = translator_create("../phone.txt", "../words.txt"); */
 
-  char digits[50];
+  /* char digits[50]; */
 
-  reverse_translate(translator, "hello", digits);
-  printf("hello -> %s\n", digits);
+  /* reverse_translate(translator, "hello", digits); */
+  /* printf("hello -> %s\n", digits); */
 
   /* wl_print(trie_search(translator->trie_root, "843")); */
   /* wl_print(trie_search(translator->trie_root, "43556")); */
   /* wl_print(trie_search(translator->trie_root, "38628466")); */
 
-  translator_destroy(translator);
+  /* translator_destroy(translator); */
 
-  fclose(stdout);
+  /* fclose(stdout); */
 }

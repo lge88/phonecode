@@ -1,6 +1,6 @@
 CC=clang
 
-translate: translate.c
+translate: translate.c trie.h
 	${CC} translate.c -O3 -o translate
 
 t_trie: t_trie.c trie.h

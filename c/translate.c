@@ -46,27 +46,91 @@ void print_options(options_t* options_ptr) {
   printf("reverse: %s\n", options_ptr->reverse ? "true" : "false");
 }
 
-int main(int argc, char* argv[]) {
-  options_t options = parse_options(argc, argv);
-  /* print_options(&options); */
-
-  translator_t* translator = translator_create(options.phoneFile, options.wordsFile);
-
-  if (options.reverse) {
-    char buf_out[100];
-    char buf_in[100];
-
-    while (fgets(buf_in, sizeof(buf_in), stdin) != NULL) {
-      trim_newline_right(buf_in);
-      reverse_translate(translator, buf_in, buf_out);
-      const char* word = buf_in;
-      const char* digits = buf_out;
-      printf("%s: %s\n", word, digits);
+void remove_char(char* str, char c) {
+  char* head = str;
+  char* tail = str;
+  while (*head != '\0') {
+    if (*head != c) {
+      *tail = *head;
+      ++tail;
     }
+    ++head;
+  }
+  *tail = '\0';
+}
 
+
+typedef void (*translate_fn_t)(const translator_t*, const char* in, char* out);
+
+void reverse_translate(const translator_t* translator, const char* word, char* digits) {
+  translator_encode(translator, word, digits);
+  remove_char(digits, '-');
+
+  char tmp[100];
+  strcpy(tmp, digits);
+  sprintf(digits, "%s: %s", word, tmp);
+}
+
+void translate(const translator_t* translator, const char* digits, char* sentences) {
+  word_list_list_t _wll;
+  word_list_list_t* wll;
+
+  translator_decode(translator, digits, wll);
+
+  const char* first_jointer = " ";
+  const char* second_jointer = "\n";
+
+  /* int num_wls = wll->len; */
+  /* int num_digits = strlen(digits); */
+  /* int len_second_jointer = strlen(second_jointer); */
+  /* int total_num_chars = wll_num_chars(wll) + (num_wls - 1)*len_second_jointer + 1; */
+
+  /* char* output = malloc(totol_num_chars*sizeof(char)); */
+  char* head = sentences;
+
+  word_list_node_t* cur = wll->head;
+  while (cur) {
+    head += wl_join(cur->wl, first_jointer, head);
+
+    if (cur->next) {
+      sprintf(head, "%s", second_jointer);
+      head += len_second_jointer;
+    }
+    cur = cur->next;
   }
 
+  return output;
+
+
+}
+
+void translate_line_by_line(
+    const translator_t* translator,
+    translate_fn_t fn) {
+
+  char buf_out[1024];
+  char buf_in[1024];
+
+  while (fgets(buf_in, sizeof(buf_in), stdin) != NULL) {
+    trim_newline_right(buf_in);
+    fn(translator, buf_in, buf_out);
+    printf("%s\n", buf_out);
+  }
+}
+
+int main(int argc, char* argv[]) {
+  options_t options = parse_options(argc, argv);
+
+  translator_t* translator = translator_create(options.phoneFile, options.wordsFile);
+  translate_fn_t fn;
+
+  if (options.reverse) {
+    fn = &reverse_translate;
+  }
+
+  translate_line_by_line(translator, fn);
+
   translator_destroy(translator);
-  fclose(stdout);
   fclose(stdin);
+  fclose(stdout);
 }
