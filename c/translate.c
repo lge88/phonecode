@@ -10,8 +10,8 @@ typedef struct {
 } options_t;
 
 const options_t DEFAULT_OPTIONS = {
-  "words.txt",
-  "phone.txt",
+  "../words.txt",
+  "../phone.txt",
   0
 };
 
@@ -73,22 +73,17 @@ void reverse_translate(const translator_t* translator, const char* word, char* d
 
 void translate(const translator_t* translator, const char* digits, char* sentences) {
   word_list_list_t _wll;
-  word_list_list_t* wll;
+  word_list_list_t* wll = &_wll;
+  wll_init(wll);
 
   translator_decode(translator, digits, wll);
 
   const char* first_jointer = " ";
   const char* second_jointer = "\n";
-
-  /* int num_wls = wll->len; */
-  /* int num_digits = strlen(digits); */
-  /* int len_second_jointer = strlen(second_jointer); */
-  /* int total_num_chars = wll_num_chars(wll) + (num_wls - 1)*len_second_jointer + 1; */
-
-  /* char* output = malloc(totol_num_chars*sizeof(char)); */
+  int len_second_jointer = strlen(second_jointer);
   char* head = sentences;
-
   word_list_node_t* cur = wll->head;
+
   while (cur) {
     head += wl_join(cur->wl, first_jointer, head);
 
@@ -99,9 +94,7 @@ void translate(const translator_t* translator, const char* digits, char* sentenc
     cur = cur->next;
   }
 
-  return output;
-
-
+  wll_destroy(wll);
 }
 
 void translate_line_by_line(
@@ -126,9 +119,13 @@ int main(int argc, char* argv[]) {
 
   if (options.reverse) {
     fn = &reverse_translate;
+  } else {
+    char out[100];
+    translate(translator, "4355696753", out);
+    printf("4355696753: %s", out);
+    /* fn = &translate; */
   }
-
-  translate_line_by_line(translator, fn);
+  /* translate_line_by_line(translator, fn); */
 
   translator_destroy(translator);
   fclose(stdin);

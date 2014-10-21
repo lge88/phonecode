@@ -83,9 +83,22 @@ const char* wl_at(const word_list_t* wl, int i) {
   return 0;
 }
 
+void wl_reverse(word_list_t* wl) {
+  int i = 0, j = wl_len(wl) - 1;
+
+  while (i < j) {
+    char* tmp = wl->words[i];
+    wl->words[i] = wl->words[j];
+    wl->words[j] = tmp;
+    ++i;
+    --j;
+  }
+}
+
 void wl_append(word_list_t* wl, const char* word) {
   int cap = wl->cap;
   int len = wl->len;
+
   int word_size = strlen(word) + 1;
 
   if (len == cap) {
@@ -237,7 +250,7 @@ void trie_destroy(trie_node_t* node) {
 const word_list_t* trie_search(trie_node_t* root, const char* digits) {
   if (root == 0) return 0;
 
-  printf("digits: %s\n", digits);
+  // printf("digits: %s\n", digits);
 
   int len = strlen(digits);
   if (len == 0) return root->wl;
@@ -246,6 +259,109 @@ const word_list_t* trie_search(trie_node_t* root, const char* digits) {
   int idx = digit - '0';
   trie_node_t* node = root->children[idx];
   return trie_search(node, digits + 1);
+}
+
+
+typedef struct word_list_node_t {
+  word_list_t* wl;
+  struct word_list_node_t* next;
+} word_list_node_t;
+
+word_list_node_t* wl_node_create(word_list_t* wl) {
+  word_list_node_t* node = malloc(sizeof(word_list_node_t));
+  node->wl = wl;
+  node->next  = 0;
+  return node;
+}
+
+void wl_node_destroy(word_list_node_t* node) {
+  wl_destroy(node->wl);
+  free(node);
+}
+
+typedef struct word_list_list_t {
+  word_list_node_t* head;
+  word_list_node_t* tail;
+  int len;
+} word_list_list_t;
+
+void wll_init(word_list_list_t* wll) {
+  wll->head = 0;
+  wll->tail = 0;
+  wll->len = 0;
+}
+
+word_list_list_t* wll_create() {
+  word_list_list_t* wll = malloc(sizeof(word_list_list_t));
+  wll_init(wll);
+  return wll;
+}
+
+void wll_foreach_append(word_list_list_t* wll, const char* word) {
+  if (!wll) return;
+
+  word_list_node_t* cur  = wll->head;
+  while (cur) {
+    wl_append(cur->wl, word);
+    cur = cur->next;
+  }
+}
+
+void wll_add(word_list_list_t* wll, word_list_t* wl) {
+  if (!wll->tail) {
+    wll->head = wl_node_create(wl);
+    wll->tail = wll->head;
+    wll->len = 1;
+  } else {
+    word_list_node_t* node = wl_node_create(wl);
+    wll->tail->next = node;
+    wll->tail = node;
+    wll->len++;
+  }
+}
+
+void wll_append(word_list_list_t* into, word_list_list_t* from) {
+  if (!into || !from) return;
+
+  word_list_node_t* cur = from->head;
+  while (cur) {
+    wll_add(into, cur->wl);
+    cur = cur->next;
+  }
+}
+
+void wll_destroy(word_list_list_t* wll) {
+  if (!wll) return;
+  word_list_node_t* cur  = wll->head;
+  while (cur) {
+    word_list_node_t* next  = cur->next;
+    wl_node_destroy(cur);
+    cur = next;
+  }
+}
+
+void wll_cpy(word_list_list_t* dest, const word_list_list_t* src) {
+  if (!src || !dest) return;
+
+  dest->len = 0;
+
+  word_list_node_t* cur  = src->head;
+  while (cur) {
+    wll_add(dest, cur->wl);
+    cur = cur->next;
+  }
+}
+
+int wll_num_chars(const word_list_list_t* wll) {
+  if (!wll) return 0;
+
+  word_list_node_t* cur = wll->head;
+  int count = 0;
+  while (cur) {
+    count += wl_num_chars(cur->wl);
+    cur = cur->next;
+  }
+  return count;
 }
 
 typedef struct {
@@ -274,69 +390,66 @@ void translator_encode(const translator_t* translator, const char* word, char* o
   dict_encode_word(&translator->l2d, word, output);
 }
 
-typedef struct word_list_node_t {
-  word_list_t* wl;
-  struct word_list_node_t* next;
-} word_list_node_t;
+void _translator_decode(const translator_t* translator, const char* digits, word_list_list_t* wll) {
+  // printf("here\n");
+  if (!wll) return;
 
-word_list_node_t* wl_node_create(word_list_t* wl) {
-  word_list_node_t* node = malloc(sizeof(word_list_node_t));
-  node->wl = wl;
-  node->next  = 0;
-  return node;
-}
-
-void wl_node_destroy(word_list_node_t* node) {
-  free(node);
-}
-
-typedef struct word_list_list_t {
-  word_list_node_t* head;
-  word_list_node_t* tail;
-  int len;
-} word_list_list_t;
-
-word_list_list_t* wll_create() {
-  word_list_list_t* wll = malloc(sizeof(word_list_list_t));
-  wll->head = 0;
-  wll->tail = 0;
-  wll->len = 0;
-  return wll;
-}
-
-void wll_destroy(word_list_list_t* wll) {
-  word_list_node_t* cur  = wll->head;
-  while (cur) {
-    word_list_node_t* next  = cur->next;
-    wl_node_destroy(cur);
-    cur = next;
+  int len = strlen(digits);
+  // printf("digits: %s\n", digits);
+  // printf("len: %d\n", len);
+  if (len == 0) {
+    word_list_t* wl = wl_create(1);
+    wll_add(wll, wl);
+    return;
   }
-  free(wll);
-}
 
-void wll_append(word_list_list_t* wll, word_list_t* wl) {
-  if (!wll->tail) {
-    wll->head = wl_node_create(wl);
-    wll->tail = wll->head;
-    wll->len = 1;
-  } else {
-    word_list_node_t* node = wl_node_create(wl);
-    wll->tail->next = node;
-    wll->tail = node;
-    wll->len++;
+  trie_node_t* root = translator->trie_root;
+  for (int i = 1; i <= len; ++i) {
+    char prefix[1024];
+    strncpy(prefix, digits, i);
+    prefix[i] = '\0';
+    const char* rest = digits + i;
+
+    const word_list_t* first_words = trie_search(root, prefix);
+    if (first_words) {
+      word_list_list_t _wll_tmp;
+      word_list_list_t* wll_tmp = &_wll_tmp;
+      wll_init(wll_tmp);
+
+      _translator_decode(translator, rest, wll_tmp);
+
+      if (wll_tmp->len > 0) {
+        int num_first_words = wl_len(first_words);
+
+        for (int j = 0; j < num_first_words; ++j) {
+          const char* first_word = wl_at(first_words, j);
+          word_list_list_t _wll_tmp_copy;
+          word_list_list_t* wll_tmp_copy = &_wll_tmp_copy;
+          wll_cpy(wll_tmp_copy, wll_tmp);
+
+          wll_foreach_append(wll_tmp_copy, first_word);
+          wll_append(wll, wll_tmp_copy);
+        }
+      }
+
+      //free(wll_tmp);
+      //wll_destroy(wll_tmp);
+    }
   }
 }
 
-int wll_num_chars(const word_list_list_t* wll) {
-  if (!wll) return 0;
+void translator_decode(const translator_t* translator, const char* digits, word_list_list_t* wll) {
+
+  // printf("d: %s", digits);
+  _translator_decode(translator, digits, wll);
+  // reverse all the words in word_list_t s
+  if (!wll) return;
 
   word_list_node_t* cur = wll->head;
-  int count = 0;
   while (cur) {
-    count += wl_num_chars(cur->wl);
+    wl_reverse(cur->wl);
     cur = cur->next;
   }
-  return count;
 }
 
 #endif

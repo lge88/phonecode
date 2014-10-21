@@ -14,12 +14,17 @@ int main() {
   /* printf("n lines: %d\n", count_lines("../words.txt")); */
   /* fclose(f); */
 
-  word_list_t* wl = wl_from_file("../input-sentences-01.txt");
+  /* word_list_t* wl = wl_from_file("../input-sentences-01.txt"); */
+  word_list_t* wl = wl_create(1);
+  for (int i = 0; i < 100; ++i)
+    wl_append(wl, "abc");
+
   wl_print(wl);
 
-  char dest[1024];
-  wl_join(wl, "--", dest);
-  printf("%s", dest);
+  /* char dest[1024]; */
+  /* wl_join(wl, "--", dest); */
+  /* printf("%s", dest); */
+  /* wl_destroy(wl); */
 
   /* static dict_t _l2d; */
   /* dict_t* l2d = &_l2d; */
