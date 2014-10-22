@@ -1,2 +1,5 @@
 translate
-t_*
+t_dict
+t_mem
+t_trie
+t_wl
