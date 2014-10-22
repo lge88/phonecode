@@ -390,16 +390,12 @@ void translator_encode(const translator_t* translator, const char* word, char* o
   dict_encode_word(&translator->l2d, word, output);
 }
 
-void _translator_decode(const translator_t* translator, const char* digits, word_list_list_t* wll) {
-  // printf("here\n");
-  if (!wll) return;
+void translator_decode(const translator_t* translator, const char* digits, word_list_t* solns) {
+  if (!solns) return;
 
   int len = strlen(digits);
-  // printf("digits: %s\n", digits);
-  // printf("len: %d\n", len);
   if (len == 0) {
-    word_list_t* wl = wl_create(1);
-    wll_add(wll, wl);
+    wl_append(solns, "");
     return;
   }
 
@@ -412,44 +408,50 @@ void _translator_decode(const translator_t* translator, const char* digits, word
 
     const word_list_t* first_words = trie_search(root, prefix);
     if (first_words) {
-      word_list_list_t _wll_tmp;
-      word_list_list_t* wll_tmp = &_wll_tmp;
-      wll_init(wll_tmp);
+      word_list_t* wl_partials = wl_create(1);
+      translator_decode(translator, rest, wl_partials);
 
-      _translator_decode(translator, rest, wll_tmp);
+      int num_partial_solns = wl_len(wl_partials);
 
-      if (wll_tmp->len > 0) {
+      if (num_partial_solns > 0) {
         int num_first_words = wl_len(first_words);
 
         for (int j = 0; j < num_first_words; ++j) {
           const char* first_word = wl_at(first_words, j);
-          word_list_list_t _wll_tmp_copy;
-          word_list_list_t* wll_tmp_copy = &_wll_tmp_copy;
-          wll_cpy(wll_tmp_copy, wll_tmp);
 
-          wll_foreach_append(wll_tmp_copy, first_word);
-          wll_append(wll, wll_tmp_copy);
+          for (int k = 0; k < num_partial_solns; ++k) {
+            const char* partial_soln = wl_at(wl_partials, k);
+            char soln[1024];
+            char* p = soln;
+
+            strcpy(p, first_word);
+            p += strlen(first_word);
+
+            if (strlen(partial_soln) > 0) sprintf(p, " %s", partial_soln);
+
+            wl_append(solns, soln);
+          }
+
         }
       }
 
-      //free(wll_tmp);
-      //wll_destroy(wll_tmp);
+      wl_destroy(wl_partials);
     }
   }
 }
 
-void translator_decode(const translator_t* translator, const char* digits, word_list_list_t* wll) {
+// void translator_decode(const translator_t* translator, const char* digits, word_list_t* wl) {
 
-  // printf("d: %s", digits);
-  _translator_decode(translator, digits, wll);
-  // reverse all the words in word_list_t s
-  if (!wll) return;
+//   // printf("d: %s", digits);
+//   _translator_decode(translator, digits, wl);
+//   // reverse all the words in word_list_t s
+//   if (!wl) return;
 
-  word_list_node_t* cur = wll->head;
-  while (cur) {
-    wl_reverse(cur->wl);
-    cur = cur->next;
-  }
-}
+//   word_list_node_t* cur = wll->head;
+//   while (cur) {
+//     wl_reverse(cur->wl);
+//     cur = cur->next;
+//   }
+// }
 
 #endif

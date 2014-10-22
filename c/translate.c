@@ -72,29 +72,24 @@ void reverse_translate(const translator_t* translator, const char* word, char* d
 }
 
 void translate(const translator_t* translator, const char* digits, char* sentences) {
-  word_list_list_t _wll;
-  word_list_list_t* wll = &_wll;
-  wll_init(wll);
+  word_list_t* solns = wl_create(1);
+  translator_decode(translator, digits, solns);
 
-  translator_decode(translator, digits, wll);
+  const char* jointer = "\n";
+  int digits_len = strlen(digits);
+  char* p = sentences;
 
-  const char* first_jointer = " ";
-  const char* second_jointer = "\n";
-  int len_second_jointer = strlen(second_jointer);
-  char* head = sentences;
-  word_list_node_t* cur = wll->head;
-
-  while (cur) {
-    head += wl_join(cur->wl, first_jointer, head);
-
-    if (cur->next) {
-      sprintf(head, "%s", second_jointer);
-      head += len_second_jointer;
+  for (int i = 0, len = wl_len(solns); i < len; ++i) {
+    const char* soln = wl_at(solns, i);
+    if (i > 0) {
+      sprintf(p, "\n");
+      p++;
     }
-    cur = cur->next;
+    sprintf(p, "%s: %s", digits, soln);
+    p += (digits_len + strlen(soln) + 2);
   }
 
-  wll_destroy(wll);
+  wl_destroy(solns);
 }
 
 void translate_line_by_line(
@@ -120,12 +115,19 @@ int main(int argc, char* argv[]) {
   if (options.reverse) {
     fn = &reverse_translate;
   } else {
-    char out[100];
-    translate(translator, "4355696753", out);
-    printf("4355696753: %s", out);
-    /* fn = &translate; */
+    /* char out[1024]; */
+    /* translate(translator, "4355696753", out); */
+    /* printf("4355696753: %s\n", out); */
+
+    /* translate(translator, "7225247386", out); */
+    /* printf("%s", out); */
+
+    /* translate(translator, "3454635254", out); */
+    /* printf("3454635254: %s\n", out); */
+
+    fn = &translate;
   }
-  /* translate_line_by_line(translator, fn); */
+  translate_line_by_line(translator, fn);
 
   translator_destroy(translator);
   fclose(stdin);
