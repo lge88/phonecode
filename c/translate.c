@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "trie.h"
+#include "translator.h"
 
 typedef struct {
   char wordsFile[100];
@@ -46,61 +46,15 @@ void print_options(options_t* options_ptr) {
   printf("reverse: %s\n", options_ptr->reverse ? "true" : "false");
 }
 
-void remove_char(char* str, char c) {
-  char* head = str;
-  char* tail = str;
-  while (*head != '\0') {
-    if (*head != c) {
-      *tail = *head;
-      ++tail;
-    }
-    ++head;
-  }
-  *tail = '\0';
-}
-
-
 typedef void (*translate_fn_t)(const translator_t*, const char* in, char* out);
-
-void reverse_translate(const translator_t* translator, const char* word, char* digits) {
-  translator_encode(translator, word, digits);
-  remove_char(digits, '-');
-
-  char tmp[100];
-  strcpy(tmp, digits);
-  sprintf(digits, "%s: %s", word, tmp);
-}
-
-void translate(const translator_t* translator, const char* digits, char* sentences) {
-  word_list_t* solns = wl_create(1);
-  translator_decode(translator, digits, solns);
-
-  const char* jointer = "\n";
-  int digits_len = strlen(digits);
-  char* p = sentences;
-
-  for (int i = 0, len = wl_len(solns); i < len; ++i) {
-    const char* soln = wl_at(solns, i);
-    if (i > 0) {
-      sprintf(p, "\n");
-      p++;
-    }
-    sprintf(p, "%s: %s", digits, soln);
-    p += (digits_len + strlen(soln) + 2);
-  }
-
-  wl_destroy(solns);
-}
-
 void translate_line_by_line(
     const translator_t* translator,
     translate_fn_t fn) {
 
-  char buf_out[1024];
-  char buf_in[1024];
+  static char buf_out[MAX_WORD_LENGTH];
+  static char buf_in[MAX_WORD_LENGTH];
 
-  while (fgets(buf_in, sizeof(buf_in), stdin) != NULL) {
-    trim_newline_right(buf_in);
+  while (fscanf(stdin, "%[^\n]\n", buf_in) == 1) {
     fn(translator, buf_in, buf_out);
     printf("%s\n", buf_out);
   }
@@ -113,19 +67,9 @@ int main(int argc, char* argv[]) {
   translate_fn_t fn;
 
   if (options.reverse) {
-    fn = &reverse_translate;
+    fn = &translator_reverse_translate;
   } else {
-    /* char out[1024]; */
-    /* translate(translator, "4355696753", out); */
-    /* printf("4355696753: %s\n", out); */
-
-    /* translate(translator, "7225247386", out); */
-    /* printf("%s", out); */
-
-    /* translate(translator, "3454635254", out); */
-    /* printf("3454635254: %s\n", out); */
-
-    fn = &translate;
+    fn = &translator_translate;
   }
   translate_line_by_line(translator, fn);
 
