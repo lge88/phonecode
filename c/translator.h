@@ -8,6 +8,26 @@
 
 #define MAX_WORD_LENGTH 1024
 
+// helpers:
+char* trim_newline_right(char* s) {
+  int end = strlen(s) - 1;
+  if (end >= 0 && s[end] == '\n') s[end] = '\0';
+  return s;
+}
+
+void remove_char(char* str, char c) {
+  char* head = str;
+  char* tail = str;
+  while (*head != '\0') {
+    if (*head != c) {
+      *tail = *head;
+      ++tail;
+    }
+    ++head;
+  }
+  *tail = '\0';
+}
+
 // Implemented using resizing array.
 typedef struct {
   char** words;
@@ -15,6 +35,7 @@ typedef struct {
   int cap;
 } word_list_t;
 
+word_list_t* wl_create(int cap);
 word_list_t* wl_from_file(const char* wordsFile);
 void wl_destroy(word_list_t* wl);
 const char* wl_at(const word_list_t* wl, int i);
@@ -32,19 +53,6 @@ void wl_print(const word_list_t* wl) {
     printf("%d/%d: %s\n", i, len, wl_at(wl, i));
 }
 
-// helpers:
-int count_lines(FILE* f) {
-  int count = 0;
-  char buf[MAX_WORD_LENGTH];
-  while (fgets(buf, sizeof(buf), f) != NULL) ++count;
-  return count;
-}
-
-void trim_newline_right(char* s) {
-  int len = strlen(s);
-  if (s[len-1] == '\n') s[len-1] = '\0';
-}
-
 word_list_t* wl_create(int cap) {
   word_list_t* wl = (word_list_t*) malloc(sizeof(word_list_t));
   wl->len = 0;
@@ -54,17 +62,14 @@ word_list_t* wl_create(int cap) {
 }
 
 word_list_t* wl_from_file(const char* wl_file) {
-  word_list_t* wl = wl_create(10);
+  word_list_t* wl = wl_create(50000);
   char buf[MAX_WORD_LENGTH];
+
   FILE* f = fopen(wl_file, "r");
-
-  rewind(f);
-  while (fgets(buf, sizeof(buf), f) != NULL) {
-    trim_newline_right(buf);
-    wl_append(wl, buf);
-  }
-
+  // while (fscanf(f, "%[^\n]\n", buf) == 1) wl_append(wl, buf);
+  while (fgets(buf, sizeof(buf), f) != NULL) wl_append(wl, trim_newline_right(buf));
   fclose(f);
+
   return wl;
 }
 
@@ -74,8 +79,7 @@ int wl_len(const word_list_t* wl) {
 
 int wl_num_chars(const word_list_t* wl) {
   int count = 0;
-  for (int i = 0, len = wl_len(wl); i < len; ++i)
-    count += strlen(wl->words[i]);
+  for (int i = 0, len = wl_len(wl); i < len; ++i) count += strlen(wl->words[i]);
   return count;
 }
 
@@ -176,8 +180,8 @@ typedef struct trie_node_t {
   word_list_t* wl;
   struct trie_node_t* children[10];
 } trie_node_t;
-trie_node_t* trie_build(const dict_t* l2d, const word_list_t* wl);
 trie_node_t* trie_node_create();
+trie_node_t* trie_build(const dict_t* l2d, const word_list_t* wl);
 void trie_insert(trie_node_t* root, const dict_t* l2d, const char* word);
 void trie_destroy(trie_node_t* root);
 const word_list_t* trie_search(trie_node_t* root, const char* digits);
@@ -193,11 +197,8 @@ void _trie_insert(trie_node_t* node, const dict_t* l2d, const char* word, const 
   if (node == 0 || word == 0) return;
 
   int len = strlen(suffix);
-
   if (len == 0) {
-    if (node->wl == 0) {
-      node->wl = wl_create(1);
-    }
+    if (node->wl == 0) node->wl = wl_create(1);
     wl_append(node->wl, word);
     return;
   }
@@ -206,9 +207,7 @@ void _trie_insert(trie_node_t* node, const dict_t* l2d, const char* word, const 
   char digit = dict_lookup(l2d, letter);
   int idx = digit - '0';
   if (idx >= 0 && idx < 10) {
-    if (node->children[idx] == 0) {
-      node->children[idx] = trie_node_create();
-    }
+    if (node->children[idx] == 0) node->children[idx] = trie_node_create();
     _trie_insert(node->children[idx], l2d, word, suffix + 1);
   }
 }
@@ -229,9 +228,7 @@ trie_node_t* trie_build(const dict_t* l2d, const word_list_t* wl) {
 void trie_destroy(trie_node_t* node) {
   if (node) {
     if (node->wl) wl_destroy(node->wl);
-    for (int i = 0; i < 10; ++i) {
-      trie_destroy(node->children[i]);
-    }
+    for (int i = 0; i < 10; ++i) trie_destroy(node->children[i]);
     free(node);
   }
 }
@@ -285,18 +282,18 @@ void translator_decode(const translator_t* translator, const char* digits, word_
 
   trie_node_t* root = translator->trie_root;
   for (int i = 1; i <= len; ++i) {
-    char prefix[1024];
+    char prefix[MAX_WORD_LENGTH];
+    const char* rest = digits + i;
+
     strncpy(prefix, digits, i);
     prefix[i] = '\0';
-    const char* rest = digits + i;
 
     const word_list_t* first_words = trie_search(root, prefix);
     if (first_words) {
-      word_list_t* wl_partials = wl_create(1);
+      word_list_t* wl_partials = wl_create(10);
       translator_decode(translator, rest, wl_partials);
 
       int num_partial_solns = wl_len(wl_partials);
-
       if (num_partial_solns > 0) {
         int num_first_words = wl_len(first_words);
 
@@ -310,32 +307,16 @@ void translator_decode(const translator_t* translator, const char* digits, word_
 
             strcpy(p, first_word);
             p += strlen(first_word);
-
             if (strlen(partial_soln) > 0) sprintf(p, " %s", partial_soln);
 
             wl_append(solns, soln);
           }
-
         }
       }
 
       wl_destroy(wl_partials);
     }
   }
-}
-
-
-void remove_char(char* str, char c) {
-  char* head = str;
-  char* tail = str;
-  while (*head != '\0') {
-    if (*head != c) {
-      *tail = *head;
-      ++tail;
-    }
-    ++head;
-  }
-  *tail = '\0';
 }
 
 void translator_reverse_translate(const translator_t* translator, const char* word, char* digits) {
@@ -348,7 +329,7 @@ void translator_reverse_translate(const translator_t* translator, const char* wo
 }
 
 void translator_translate(const translator_t* translator, const char* digits, char* sentences) {
-  word_list_t* solns = wl_create(1);
+  word_list_t* solns = wl_create(100);
   translator_decode(translator, digits, solns);
 
   const char* jointer = "\n";
@@ -357,10 +338,7 @@ void translator_translate(const translator_t* translator, const char* digits, ch
 
   for (int i = 0, len = wl_len(solns); i < len; ++i) {
     const char* soln = wl_at(solns, i);
-    if (i > 0) {
-      sprintf(p, "\n");
-      p++;
-    }
+    if (i > 0) sprintf(p++, "\n");
     sprintf(p, "%s: %s", digits, soln);
     p += (digits_len + strlen(soln) + 2);
   }

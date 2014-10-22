@@ -54,7 +54,8 @@ void translate_line_by_line(
   static char buf_out[MAX_WORD_LENGTH];
   static char buf_in[MAX_WORD_LENGTH];
 
-  while (fscanf(stdin, "%[^\n]\n", buf_in) == 1) {
+  /* while (fscanf(stdin, "%[^\n]\n", buf_in) == 1) { */
+  while (fgets(buf_in, sizeof(buf_in), stdin) != NULL && trim_newline_right(buf_in)) {
     fn(translator, buf_in, buf_out);
     printf("%s\n", buf_out);
   }
