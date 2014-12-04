@@ -123,19 +123,19 @@ func (t *Translator) init(phoneFileName string, wordsFileName string, reverse bo
 	d2wMap := make(map[string][]string)
 
 	l2dMap := buildLetterToDigitMap(phoneFileName)
+	t.l2dMap = l2dMap
 
 	for scanner.Scan() {
 		word := scanner.Text()
 		digits := t.wordToDigits(word)
 
 		if d2wMap[digits] == nil {
-			d2wMap[digits] = make([]string, 1)
+			d2wMap[digits] = make([]string, 0)
 		}
 
 		d2wMap[digits] = append(d2wMap[digits], word)
 	}
 
-	t.l2dMap = l2dMap
 	t.d2wMap = d2wMap
 	t.reverse = reverse
 }
@@ -154,12 +154,39 @@ func (t *Translator) wordToDigits(word string) string {
   res := strings.Map(func (x rune) rune {
 		return t.letterToDigit(x)
 	}, word)
+
 	r := strings.NewReplacer("-", "")
-	return fmt.Sprintf("%s", r.Replace(res))
+	res = r.Replace(res)
+	return res
+}
+
+func (t *Translator) translateRecursive(fullDigits string, digits string, sofar []string, writer LineWriter) {
+	l := len(digits)
+
+	if l == 0 {
+		writer.WriteLine(fullDigits + ": " + strings.Join(sofar, " "))
+		return
+	}
+
+	for i := 1; i <= l; i += 1 {
+		prefix := digits[:i]
+		rest := digits[i:]
+
+		if words := t.d2wMap[prefix]; words != nil {
+			for _, word := range words {
+				// newSofar := make([]string, len(sofar))
+				// copy(newSofar, sofar)
+				// newSofar = append(newSofar, word)
+				// t.translateRecursive(fullDigits, rest, newSofar, writer)
+				t.translateRecursive(fullDigits, rest, append(sofar, word), writer)
+			}
+		}
+	}
 }
 
 func (t *Translator) translate(digits string, writer LineWriter) {
-	writer.WriteLine(digits + ":")
+	if len(digits) <= 0 { return }
+	t.translateRecursive(digits, digits, make([]string, 0), writer)
 }
 
 func (t *Translator) reverseTranslate(word string, writer LineWriter) {
